@@ -1,0 +1,54 @@
+# =========================
+# ESP-IDF
+# =========================
+build/
+managed_components/
+dependencies.lock
+sdkconfig
+sdkconfig.old
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# Python
+# =========================
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+dist/
+build/
+
+# =========================
+# Camera
+# =========================
+camera_gateway/fire_images/
+camera_gateway/*.jpg
+camera_gateway/*.jpeg
+camera_gateway/*.png
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
