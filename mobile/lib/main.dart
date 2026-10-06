@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'screens/camera_screen.dart';
 
 void main() {
   runApp(
@@ -19,15 +20,24 @@ class FireGasApp extends StatelessWidget {
       title: 'Fire Gas System',
 
       theme: ThemeData(
-        colorScheme:
-            ColorScheme.fromSeed(
+        colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.red,
         ),
 
         useMaterial3: true,
       ),
 
-      home: const HomeScreen(),
+      // =====================================================
+      // ROUTES
+      // =====================================================
+
+      routes: {
+        '/': (context) => const HomeScreen(),
+
+        '/camera': (context) => const CameraScreen(),
+      },
+
+      initialRoute: '/',
     );
   }
 }

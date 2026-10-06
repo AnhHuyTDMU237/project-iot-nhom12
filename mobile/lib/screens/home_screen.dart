@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import 'control_screen.dart';
 import 'events_screen.dart';
 import 'history_screen.dart';
+import 'camera_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -266,11 +267,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.settings_remote),
+                icon: const Icon(
+                  Icons.settings_remote,
+                ),
                 label: const Text(
                   'ĐIỀU KHIỂN THIẾT BỊ',
                 ),
               ),
+
+              const SizedBox(height: 10),
 
               ElevatedButton.icon(
                 onPressed: () {
@@ -282,11 +287,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.history),
+                icon: const Icon(
+                  Icons.history,
+                ),
                 label: const Text(
                   'LỊCH SỬ SENSOR',
                 ),
               ),
+
+              const SizedBox(height: 10),
 
               ElevatedButton.icon(
                 onPressed: () {
@@ -298,9 +307,35 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.warning),
+                icon: const Icon(
+                  Icons.warning,
+                ),
                 label: const Text(
                   'LỊCH SỬ CẢNH BÁO',
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // ===========================================
+              // CAMERA
+              // ===========================================
+
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const CameraScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.photo_camera,
+                ),
+                label: const Text(
+                  'XEM ẢNH CAMERA',
                 ),
               ),
             ],
