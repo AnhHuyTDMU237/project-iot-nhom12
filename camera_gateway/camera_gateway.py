@@ -2,6 +2,7 @@ import cv2
 import os
 import json
 import time
+import requests
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -16,9 +17,19 @@ MQTT_PORT = 1883
 
 MQTT_TOPIC = "iot/firegas/camera"
 
+# FastAPI Backend
+BACKEND_URL = "http://localhost:8000"
+
+# Device ESP32
+DEVICE_ID = "esp32-001"
+
+# Webcam
 CAMERA_INDEX = 0
 
-# Thư mục lưu ảnh
+# ============================================================
+# FOLDER LƯU ẢNH
+# ============================================================
+
 SAVE_FOLDER = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "fire_images"
@@ -34,23 +45,140 @@ os.makedirs(
 # FIRE STATE
 # ============================================================
 
-# False = hệ thống đang bình thường
-# True  = đã chụp ảnh FIRE rồi
+# False:
+#   Chưa chụp ảnh trong lần FIRE hiện tại
 #
-# Mục đích:
-# Nếu ESP32 gửi FIRE liên tục:
+# True:
+#   Đã chụp rồi
 #
-# FIRE → chụp 1 ảnh
+# Ví dụ:
+#
+# FIRE → chụp
 # FIRE → không chụp
 # FIRE → không chụp
-#
-# Khi NORMAL:
 #
 # NORMAL → reset
 #
-# FIRE lần tiếp theo → chụp ảnh mới
-#
+# FIRE → chụp ảnh mới
+# ============================================================
+
 fire_already_captured = False
+
+
+# ============================================================
+# GỬI THÔNG TIN ẢNH CHO FASTAPI
+# ============================================================
+
+def send_image_to_backend(filename):
+    """
+    Gửi metadata của ảnh lên FastAPI.
+
+    Không upload file ảnh qua HTTP.
+    Ảnh vẫn nằm trong:
+        camera_gateway/fire_images/
+
+    FastAPI chỉ lưu tên file vào PostgreSQL.
+    """
+
+    url = f"{BACKEND_URL}/api/camera/upload"
+
+    data = {
+        "device_id": DEVICE_ID,
+        "event": "FIRE",
+        "image_path": filename
+    }
+
+    print()
+    print("==========================================")
+    print("📡 GỬI THÔNG TIN ẢNH CHO FASTAPI")
+    print("==========================================")
+
+    print(f"🌐 URL      : {url}")
+    print(f"📱 Device   : {DEVICE_ID}")
+    print(f"🔥 Event    : FIRE")
+    print(f"📷 Filename : {filename}")
+
+    try:
+
+        response = requests.post(
+            url,
+            json=data,
+            timeout=5
+        )
+
+        print(
+            f"📥 HTTP Status: {response.status_code}"
+        )
+
+        if response.status_code == 200:
+
+            try:
+
+                result = response.json()
+
+                print(
+                    "✅ FastAPI đã nhận thông tin ảnh"
+                )
+
+                print(
+                    f"📦 Response: {result}"
+                )
+
+                return True
+
+            except Exception:
+
+                print(
+                    "⚠ FastAPI trả về dữ liệu "
+                    "không phải JSON"
+                )
+
+                return True
+
+        else:
+
+            print(
+                "❌ FastAPI không nhận được ảnh"
+            )
+
+            print(
+                f"❌ Response: {response.text}"
+            )
+
+            return False
+
+    except requests.exceptions.ConnectionError:
+
+        print()
+        print(
+            "❌ KHÔNG KẾT NỐI ĐƯỢC FASTAPI"
+        )
+
+        print(
+            f"❌ Kiểm tra Backend: {BACKEND_URL}"
+        )
+
+        print(
+            "👉 Hãy chắc chắn FastAPI đang chạy."
+        )
+
+        return False
+
+    except requests.exceptions.Timeout:
+
+        print(
+            "❌ FastAPI phản hồi quá lâu."
+        )
+
+        return False
+
+    except Exception as e:
+
+        print(
+            f"❌ Lỗi gửi ảnh lên FastAPI: {e}"
+        )
+
+        return False
 
 
 # ============================================================
@@ -64,35 +192,61 @@ def capture_fire_image():
     print("📷 FIRE DETECTED - CAPTURE CAMERA")
     print("==========================================")
 
-    print("📷 Đang mở webcam...")
+    print(
+        "📷 Đang mở webcam..."
+    )
 
     camera = cv2.VideoCapture(
         CAMERA_INDEX
     )
 
+    # ========================================================
+    # KIỂM TRA CAMERA
+    # ========================================================
+
     if not camera.isOpened():
 
-        print("❌ Không mở được webcam")
+        print(
+            "❌ Không mở được webcam"
+        )
 
         return None
 
-    # Cho webcam ổn định
+    # ========================================================
+    # CHỜ WEBCAM ỔN ĐỊNH
+    # ========================================================
+
+    print(
+        "⏳ Đang ổn định webcam..."
+    )
+
     time.sleep(2)
 
-    # Bỏ các frame đầu
-    for _ in range(5):
+    # ========================================================
+    # BỎ CÁC FRAME ĐẦU
+    # ========================================================
+
+    for i in range(5):
 
         ret, frame = camera.read()
 
         if not ret:
-            print("⚠ Không đọc được frame")
 
-    # Đọc frame cuối
+            print(
+                f"⚠ Không đọc được frame {i + 1}"
+            )
+
+    # ========================================================
+    # ĐỌC FRAME CUỐI
+    # ========================================================
+
     ret, frame = camera.read()
 
     if not ret:
 
-        print("❌ Không lấy được hình từ webcam")
+        print(
+            "❌ Không lấy được hình từ webcam"
+        )
 
         camera.release()
 
@@ -126,22 +280,60 @@ def capture_fire_image():
 
     camera.release()
 
-    if success:
+    # ========================================================
+    # KIỂM TRA LƯU ẢNH
+    # ========================================================
 
-        print()
-        print("==========================================")
-        print("✅ CHỤP ẢNH FIRE THÀNH CÔNG")
-        print(f"📁 {filepath}")
-        print("==========================================")
-        print()
+    if not success:
 
-        return filepath
+        print(
+            "❌ Không lưu được ảnh"
+        )
+
+        return None
+
+    # ========================================================
+    # CHỤP THÀNH CÔNG
+    # ========================================================
+
+    print()
+    print("==========================================")
+    print("✅ CHỤP ẢNH FIRE THÀNH CÔNG")
+    print("==========================================")
 
     print(
-        "❌ Không lưu được ảnh"
+        f"📁 File: {filepath}"
     )
 
-    return None
+    print(
+        f"📷 Filename: {filename}"
+    )
+
+    print("==========================================")
+    print()
+
+    # ========================================================
+    # GỬI METADATA CHO FASTAPI
+    # ========================================================
+
+    backend_success = send_image_to_backend(
+        filename
+    )
+
+    if backend_success:
+
+        print(
+            "✅ Ảnh đã được đăng ký vào Backend."
+        )
+
+    else:
+
+        print(
+            "⚠ Ảnh đã lưu local nhưng "
+            "chưa đăng ký được với Backend."
+        )
+
+    return filepath
 
 
 # ============================================================
@@ -161,9 +353,20 @@ def on_connect(
         print()
         print("==========================================")
         print("✅ MQTT CONNECTED")
-        print(f"📡 Broker: {MQTT_BROKER}:{MQTT_PORT}")
         print("==========================================")
 
+        print(
+            f"📡 Broker: "
+            f"{MQTT_BROKER}:{MQTT_PORT}"
+        )
+
+        print(
+            f"📡 Topic : {MQTT_TOPIC}"
+        )
+
+        print("==========================================")
+
+        # Subscribe
         client.subscribe(
             MQTT_TOPIC
         )
@@ -173,7 +376,10 @@ def on_connect(
         )
 
         print()
-        print("📷 Camera Gateway đang chờ FIRE...")
+        print(
+            "📷 Camera Gateway đang "
+            "chờ FIRE..."
+        )
         print()
 
     else:
@@ -196,13 +402,17 @@ def on_disconnect(
 ):
 
     print()
+
     print(
-        f"⚠ MQTT DISCONNECTED: {reason_code}"
+        f"⚠ MQTT DISCONNECTED: "
+        f"{reason_code}"
     )
 
     print(
-        "🔄 Đang chờ MQTT kết nối lại..."
+        "🔄 MQTT sẽ tự kết nối lại..."
     )
+
+    print()
 
 
 # ============================================================
@@ -218,26 +428,37 @@ def on_message(
     global fire_already_captured
 
     print()
+    print("==========================================")
     print("📩 MQTT MESSAGE")
+    print("==========================================")
+
     print(
         f"Topic: {msg.topic}"
     )
-    print(
-        f"Data : {msg.payload.decode('utf-8', errors='ignore')}"
+
+    raw_payload = msg.payload.decode(
+        "utf-8",
+        errors="ignore"
     )
+
+    print(
+        f"Data : {raw_payload}"
+    )
+
+    print("==========================================")
 
     try:
 
-        payload = msg.payload.decode(
-            "utf-8"
-        )
+        # ====================================================
+        # PARSE JSON
+        # ====================================================
 
         data = json.loads(
-            payload
+            raw_payload
         )
 
         # ====================================================
-        # ĐỌC EVENT
+        # EVENT
         # ====================================================
 
         event = str(
@@ -247,6 +468,10 @@ def on_message(
             )
         ).upper()
 
+        # ====================================================
+        # CAMERA COMMAND
+        # ====================================================
+
         camera_command = str(
             data.get(
                 "camera",
@@ -255,7 +480,7 @@ def on_message(
         ).upper()
 
         # ====================================================
-        # FIRE
+        # FIRE + CAPTURE
         # ====================================================
 
         if (
@@ -263,28 +488,42 @@ def on_message(
             and camera_command == "CAPTURE"
         ):
 
+            print()
             print(
-                "🔥 Nhận lệnh FIRE + CAPTURE"
+                "🔥 NHẬN FIRE + CAPTURE"
             )
 
             # ------------------------------------------------
-            # Nếu chưa chụp trong lần FIRE hiện tại
+            # CHƯA CHỤP
             # ------------------------------------------------
 
             if not fire_already_captured:
 
                 print(
-                    "📸 Chưa chụp ảnh FIRE → bắt đầu chụp..."
+                    "📸 Chưa chụp ảnh "
+                    "→ bắt đầu chụp..."
                 )
 
-                filepath = capture_fire_image()
+                filepath = (
+                    capture_fire_image()
+                )
+
+                # ------------------------------------------------
+                # CHỤP THÀNH CÔNG
+                # ------------------------------------------------
 
                 if filepath:
 
                     fire_already_captured = True
 
+                    print()
                     print(
-                        "✅ Đã đánh dấu FIRE = CAPTURED"
+                        "✅ FIRE = CAPTURED"
+                    )
+
+                    print(
+                        "⏭ Những FIRE tiếp theo "
+                        "sẽ không chụp lại."
                     )
 
                 else:
@@ -293,10 +532,15 @@ def on_message(
                         "⚠ Chụp ảnh thất bại."
                     )
 
+            # ------------------------------------------------
+            # ĐÃ CHỤP
+            # ------------------------------------------------
+
             else:
 
                 print(
-                    "⏭ FIRE đã được chụp trước đó."
+                    "⏭ FIRE đã được chụp "
+                    "trước đó."
                 )
 
                 print(
@@ -311,18 +555,19 @@ def on_message(
 
             if fire_already_captured:
 
+                print()
                 print(
-                    "🟢 Hệ thống trở lại NORMAL."
+                    "🟢 HỆ THỐNG TRỞ LẠI NORMAL"
                 )
 
                 print(
-                    "🔄 Reset trạng thái Camera."
+                    "🔄 Reset trạng thái Camera"
                 )
 
             fire_already_captured = False
 
         # ====================================================
-        # CÁC EVENT KHÁC
+        # EVENT KHÁC
         # ====================================================
 
         else:
@@ -331,11 +576,20 @@ def on_message(
                 f"ℹ Event: {event}"
             )
 
+    # ========================================================
+    # JSON ERROR
+    # ========================================================
+
     except json.JSONDecodeError:
 
         print(
-            "❌ MQTT DATA không phải JSON hợp lệ"
+            "❌ MQTT DATA không phải "
+            "JSON hợp lệ"
         )
+
+    # ========================================================
+    # OTHER ERROR
+    # ========================================================
 
     except Exception as e:
 
@@ -351,27 +605,52 @@ def on_message(
 def main():
 
     print()
-    print("============================================================")
-    print("             IOT FIRE GAS CAMERA GATEWAY")
-    print("============================================================")
-
     print(
-        f"📡 MQTT Broker : {MQTT_BROKER}:{MQTT_PORT}"
+        "============================================================"
     )
 
     print(
-        f"📡 MQTT Topic  : {MQTT_TOPIC}"
+        "             IOT FIRE GAS CAMERA GATEWAY"
     )
 
     print(
-        f"📷 Camera      : Index {CAMERA_INDEX}"
+        "============================================================"
     )
 
     print(
-        f"📁 Save folder : {SAVE_FOLDER}"
+        f"📡 MQTT Broker : "
+        f"{MQTT_BROKER}:{MQTT_PORT}"
     )
 
-    print("============================================================")
+    print(
+        f"📡 MQTT Topic  : "
+        f"{MQTT_TOPIC}"
+    )
+
+    print(
+        f"🌐 Backend     : "
+        f"{BACKEND_URL}"
+    )
+
+    print(
+        f"📱 Device ID   : "
+        f"{DEVICE_ID}"
+    )
+
+    print(
+        f"📷 Camera      : "
+        f"Index {CAMERA_INDEX}"
+    )
+
+    print(
+        f"📁 Save folder : "
+        f"{SAVE_FOLDER}"
+    )
+
+    print(
+        "============================================================"
+    )
+
     print()
 
     # ========================================================
@@ -416,6 +695,7 @@ def main():
         )
 
         print()
+
         print(
             "Kiểm tra Mosquitto Docker:"
         )

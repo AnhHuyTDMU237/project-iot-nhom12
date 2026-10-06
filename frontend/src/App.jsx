@@ -12,6 +12,9 @@ function App() {
     const [sensorHistory, setSensorHistory] = useState([]);
     const [cameraImages, setCameraImages] = useState([]);
 
+    // Ảnh camera đang được chọn để xem chi tiết
+    const [selectedImage, setSelectedImage] = useState(null);
+
     const [apiStatus, setApiStatus] = useState("CONNECTING");
 
     // Trạng thái điều khiển local
@@ -25,6 +28,39 @@ function App() {
 
 
     // =====================================================
+    // API BASE URL
+    // =====================================================
+
+    const API_BASE_URL =
+        api.defaults.baseURL ||
+        "http://localhost:8000";
+
+
+    // =====================================================
+    // TẠO URL ẢNH
+    // =====================================================
+
+    const getImageUrl = (imagePath) => {
+
+        if (!imagePath) {
+            return "";
+        }
+
+        // Nếu Backend đã trả về URL đầy đủ
+        if (
+            imagePath.startsWith("http://") ||
+            imagePath.startsWith("https://")
+        ) {
+            return imagePath;
+        }
+
+        // Nếu Backend trả:
+        // /camera-images/fire_xxx.jpg
+        return `${API_BASE_URL}${imagePath}`;
+    };
+
+
+    // =====================================================
     // DEVICES
     // =====================================================
 
@@ -32,13 +68,18 @@ function App() {
 
         try {
 
-            const response = await api.get("/api/devices");
+            const response = await api.get(
+                "/api/devices"
+            );
 
             setDevices(response.data);
 
         } catch (error) {
 
-            console.error("Lỗi devices:", error);
+            console.error(
+                "Lỗi devices:",
+                error
+            );
 
         }
     };
@@ -67,7 +108,10 @@ function App() {
 
         } catch (error) {
 
-            console.error("Lỗi sensor:", error);
+            console.error(
+                "Lỗi sensor:",
+                error
+            );
 
             setApiStatus("OFFLINE");
 
@@ -247,19 +291,63 @@ function App() {
 
     useEffect(() => {
 
+        // Load lần đầu
         loadAllData();
 
+        // Cập nhật mỗi 3 giây
         const interval = setInterval(() => {
 
             loadSensor();
+
             loadSensorHistory();
+
             loadEvents();
+
             loadDevices();
+
+            // Quan trọng:
+            // Camera cũng được cập nhật tự động
+            loadCamera();
 
         }, 3000);
 
         return () => {
+
             clearInterval(interval);
+
+        };
+
+    }, []);
+
+
+    // =====================================================
+    // ĐÓNG MODAL KHI NHẤN ESC
+    // =====================================================
+
+    useEffect(() => {
+
+        const handleKeyDown = (event) => {
+
+            if (event.key === "Escape") {
+
+                setSelectedImage(null);
+
+            }
+
+        };
+
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
+        );
+
+        return () => {
+
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown
+            );
+
         };
 
     }, []);
@@ -1091,6 +1179,10 @@ function App() {
 
                         </div>
 
+                        <div className="refresh-info">
+                            ↻ Tự động cập nhật 3s
+                        </div>
+
                     </div>
 
 
@@ -1118,32 +1210,131 @@ function App() {
                         <div className="camera-grid">
 
                             {cameraImages.map(
-                                image => (
+                                image => {
 
-                                    <div
-                                        className="camera-card"
-                                        key={image.id}
-                                    >
+                                    const imageUrl =
+                                        getImageUrl(
+                                            image.image_url
+                                        );
 
-                                        <div className="camera-placeholder">
-                                            📷
+                                    return (
+
+                                        <div
+                                            className="camera-card"
+                                            key={image.id}
+                                        >
+
+                                            {/* ================================= */}
+                                            {/* ẢNH THẬT */}
+                                            {/* ================================= */}
+
+                                            <div
+                                                className="camera-image-wrapper"
+                                                onClick={() =>
+                                                    setSelectedImage(
+                                                        image
+                                                    )
+                                                }
+                                                title="Bấm để xem ảnh lớn"
+                                            >
+
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={
+                                                        `Camera FIRE ${image.id}`
+                                                    }
+                                                    className="camera-image"
+                                                    onError={(event) => {
+
+                                                        event.currentTarget.style.display =
+                                                            "none";
+
+                                                        const errorBox =
+                                                            event.currentTarget
+                                                                .parentElement
+                                                                .querySelector(
+                                                                    ".camera-image-error"
+                                                                );
+
+                                                        if (errorBox) {
+
+                                                            errorBox.style.display =
+                                                                "flex";
+
+                                                        }
+
+                                                    }}
+                                                />
+
+                                                {/* Nếu ảnh lỗi */}
+
+                                                <div
+                                                    className="camera-image-error"
+                                                    style={{
+                                                        display: "none"
+                                                    }}
+                                                >
+                                                    <span>
+                                                        📷
+                                                    </span>
+
+                                                    <small>
+                                                        Không tải được ảnh
+                                                    </small>
+                                                </div>
+
+                                                {/* Overlay khi rê chuột */}
+
+                                                <div className="camera-image-overlay">
+
+                                                    <span>
+                                                        🔍
+                                                    </span>
+
+                                                    <strong>
+                                                        Xem ảnh
+                                                    </strong>
+
+                                                </div>
+
+                                            </div>
+
+
+                                            {/* ================================= */}
+                                            {/* THÔNG TIN ẢNH */}
+                                            {/* ================================= */}
+
+                                            <div className="camera-info">
+
+                                                <strong>
+                                                    🔥 {image.event}
+                                                </strong>
+
+                                                <small>
+                                                    {new Date(
+                                                        image.created_at
+                                                    ).toLocaleString(
+                                                        "vi-VN"
+                                                    )}
+                                                </small>
+
+                                                <button
+                                                    className="camera-detail-button"
+                                                    onClick={() =>
+                                                        setSelectedImage(
+                                                            image
+                                                        )
+                                                    }
+                                                >
+                                                    Xem chi tiết →
+                                                </button>
+
+                                            </div>
+
                                         </div>
 
-                                        <strong>
-                                            {image.event}
-                                        </strong>
-
-                                        <small>
-                                            {new Date(
-                                                image.created_at
-                                            ).toLocaleString(
-                                                "vi-VN"
-                                            )}
-                                        </small>
-
-                                    </div>
-
-                                )
+                                    );
+                                }
                             )}
 
                         </div>
@@ -1151,6 +1342,146 @@ function App() {
                     )}
 
                 </section>
+
+            )}
+
+
+            {/* ================================================= */}
+            {/* CAMERA DETAIL MODAL */}
+            {/* ================================================= */}
+
+            {selectedImage && (
+
+                <div
+                    className="camera-modal"
+                    onClick={() =>
+                        setSelectedImage(null)
+                    }
+                >
+
+                    <div
+                        className="camera-modal-content"
+                        onClick={(event) =>
+                            event.stopPropagation()
+                        }
+                    >
+
+                        {/* ================================= */}
+                        {/* MODAL HEADER */}
+                        {/* ================================= */}
+
+                        <div className="camera-modal-header">
+
+                            <div>
+
+                                <span>
+                                    CAMERA EVENT
+                                </span>
+
+                                <h2>
+                                    🔥 {selectedImage.event}
+                                </h2>
+
+                            </div>
+
+                            <button
+                                className="camera-modal-close"
+                                onClick={() =>
+                                    setSelectedImage(null)
+                                }
+                            >
+                                ✕
+                            </button>
+
+                        </div>
+
+
+                        {/* ================================= */}
+                        {/* ẢNH LỚN */}
+                        {/* ================================= */}
+
+                        <div className="camera-modal-image-container">
+
+                            <img
+                                src={
+                                    getImageUrl(
+                                        selectedImage.image_url
+                                    )
+                                }
+                                alt="Fire event"
+                                className="camera-modal-image"
+                            />
+
+                        </div>
+
+
+                        {/* ================================= */}
+                        {/* THÔNG TIN */}
+                        {/* ================================= */}
+
+                        <div className="camera-modal-info">
+
+                            <div>
+
+                                <span>
+                                    Sự kiện
+                                </span>
+
+                                <strong>
+                                    🔥 {selectedImage.event}
+                                </strong>
+
+                            </div>
+
+
+                            <div>
+
+                                <span>
+                                    Thời gian
+                                </span>
+
+                                <strong>
+                                    {new Date(
+                                        selectedImage.created_at
+                                    ).toLocaleString(
+                                        "vi-VN"
+                                    )}
+                                </strong>
+
+                            </div>
+
+
+                            <div>
+
+                                <span>
+                                    Thiết bị
+                                </span>
+
+                                <strong>
+                                    {selectedImage.device_id}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        {/* ================================= */}
+                        {/* BUTTON */}
+                        {/* ================================= */}
+
+                        <button
+                            className="camera-modal-button"
+                            onClick={() =>
+                                setSelectedImage(null)
+                            }
+                        >
+                            Đóng
+                        </button>
+
+                    </div>
+
+                </div>
 
             )}
 
