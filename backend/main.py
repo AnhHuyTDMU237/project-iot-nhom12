@@ -7,9 +7,20 @@ from database import Base, engine, get_db
 from models import Device, SensorData, Event, CameraImage
 from mqtt_service import start_mqtt, publish_command
 
+
+# =========================================================
+# REQUEST MODELS
+# =========================================================
+
 class DeviceCommand(BaseModel):
     device_id: str = "esp32-001"
     command: str
+
+
+class CommandRequest(BaseModel):
+    command: str
+
+
 # =========================================================
 # FASTAPI APP
 # =========================================================
@@ -19,27 +30,38 @@ app = FastAPI(
     version="1.0.0"
 )
 
-class CommandRequest(BaseModel):
-    command: str
-
 
 # =========================================================
 # CORS
-# Cho phép React truy cập FastAPI
+# =========================================================
+# Cho phép:
+# - React chạy local
+# - React chạy trên Vercel
 # =========================================================
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
+        # React Vite local
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+
+        # React Vite port khác
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+
+        # Vercel project
         "https://project-iot-nhom12.vercel.app",
     ],
+
+    # Cho phép các domain *.vercel.app
     allow_origin_regex=r"https://.*\.vercel\.app",
+
     allow_credentials=True,
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
@@ -56,24 +78,38 @@ def startup():
     print("=" * 60)
 
     # -----------------------------------------------------
-    # Tạo bảng nếu chưa tồn tại
+    # CREATE DATABASE TABLES
     # -----------------------------------------------------
 
     print("Creating database tables...")
 
-    Base.metadata.create_all(
-        bind=engine
-    )
+    try:
 
-    print("Database ready.")
+        Base.metadata.create_all(
+            bind=engine
+        )
+
+        print("Database ready.")
+
+    except Exception as e:
+
+        print("DATABASE ERROR:")
+        print(e)
 
     # -----------------------------------------------------
-    # Khởi động MQTT
+    # START MQTT
     # -----------------------------------------------------
 
-    start_mqtt()
+    try:
 
-    print("MQTT service started.")
+        start_mqtt()
+
+        print("MQTT service started.")
+
+    except Exception as e:
+
+        print("MQTT ERROR:")
+        print(e)
 
     print("=" * 60)
 
@@ -87,7 +123,8 @@ def root():
 
     return {
         "message": "IoT Fire Gas API",
-        "status": "running"
+        "status": "running",
+        "version": "1.0.0"
     }
 
 
@@ -99,7 +136,8 @@ def root():
 def health():
 
     return {
-        "status": "ok"
+        "status": "ok",
+        "api": "running"
     }
 
 
@@ -112,7 +150,11 @@ def get_devices(
     db: Session = Depends(get_db)
 ):
 
-    devices = db.query(Device).all()
+    devices = (
+        db.query(Device)
+        .order_by(Device.id.asc())
+        .all()
+    )
 
     return [
         {
@@ -122,6 +164,7 @@ def get_devices(
             "status": device.status,
             "last_seen": device.last_seen
         }
+
         for device in devices
     ]
 
@@ -147,21 +190,33 @@ def get_latest_sensor(
         .first()
     )
 
-    # Không có dữ liệu
     if not sensor:
 
         return {
+            "device_id": device_id,
+            "temperature": None,
+            "humidity": None,
+            "mq2": None,
+            "flame": False,
+            "pir": False,
+            "created_at": None,
             "message": "Chua co du lieu sensor"
         }
 
-    # Có dữ liệu
     return {
+
         "device_id": sensor.device_id,
+
         "temperature": sensor.temperature,
+
         "humidity": sensor.humidity,
+
         "mq2": sensor.mq2,
+
         "flame": sensor.flame,
+
         "pir": sensor.pir,
+
         "created_at": sensor.created_at
     }
 
@@ -189,16 +244,25 @@ def get_sensor_history(
     )
 
     return [
+
         {
             "id": sensor.id,
+
             "device_id": sensor.device_id,
+
             "temperature": sensor.temperature,
+
             "humidity": sensor.humidity,
+
             "mq2": sensor.mq2,
+
             "flame": sensor.flame,
+
             "pir": sensor.pir,
+
             "created_at": sensor.created_at
         }
+
         for sensor in sensors
     ]
 
@@ -226,14 +290,21 @@ def get_events(
     )
 
     return [
+
         {
             "id": event.id,
+
             "device_id": event.device_id,
+
             "event": event.event,
+
             "severity": event.severity,
+
             "message": event.message,
+
             "created_at": event.created_at
         }
+
         for event in events
     ]
 
@@ -261,22 +332,34 @@ def get_camera_images(
     )
 
     return [
+
         {
             "id": image.id,
+
             "device_id": image.device_id,
+
             "event": image.event,
+
             "image_path": image.image_path,
+
             "created_at": image.created_at
         }
+
         for image in images
     ]
 
+
+# =========================================================
+# SEND DEVICE COMMAND
+# =========================================================
+
 @app.post("/api/device/command")
-def send_device_command(
+def send_device_command_legacy(
     command_data: DeviceCommand
 ):
 
     allowed_commands = {
+
         "FAN_ON",
         "FAN_OFF",
 
@@ -293,47 +376,73 @@ def send_device_command(
         "LIGHT_OFF"
     }
 
-    if command_data.command not in allowed_commands:
+    command = command_data.command.upper()
+
+    if command not in allowed_commands:
 
         return {
+
             "success": False,
-            "message": "Command khong hop le"
+
+            "message": "Command khong hop le",
+
+            "command": command
         }
 
     try:
 
         payload = publish_command(
             command_data.device_id,
-            command_data.command
+            command
         )
 
         return {
+
             "success": True,
+
             "message": "Command da gui",
+
+            "device_id": command_data.device_id,
+
+            "command": command,
+
             "data": payload
         }
 
     except Exception as e:
 
         return {
+
             "success": False,
+
             "message": str(e)
         }
+
+
+# =========================================================
+# SEND DEVICE COMMAND - NEW API
+# =========================================================
 
 @app.post("/api/devices/{device_id}/command")
 def send_device_command(
     device_id: str,
     request: CommandRequest
 ):
+
     allowed_commands = {
+
         "FAN_ON",
         "FAN_OFF",
+
         "PUMP_ON",
         "PUMP_OFF",
+
         "BUZZER_ON",
         "BUZZER_OFF",
+
         "DOOR_OPEN",
         "DOOR_CLOSE",
+
         "LIGHT_ON",
         "LIGHT_OFF",
     }
@@ -341,19 +450,37 @@ def send_device_command(
     command = request.command.upper()
 
     if command not in allowed_commands:
+
         return {
+
             "success": False,
+
             "message": "Lenh khong hop le",
-            "command": command,
+
+            "command": command
         }
 
-    publish_command(
-        device_id,
-        command
-    )
+    try:
 
-    return {
-        "success": True,
-        "device_id": device_id,
-        "command": command,
-    }
+        publish_command(
+            device_id,
+            command
+        )
+
+        return {
+
+            "success": True,
+
+            "device_id": device_id,
+
+            "command": command
+        }
+
+    except Exception as e:
+
+        return {
+
+            "success": False,
+
+            "message": str(e)
+        }
