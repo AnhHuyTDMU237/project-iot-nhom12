@@ -996,10 +996,20 @@ static bool audio_warning_played = false;
 
 static void relay_light(bool on)
 {
-    gpio_set_level(LIGHT_GPIO,
-                   RELAY_ACTIVE_LOW ? !on : on);
+    // Đèn của bạn đang có logic:
+    // GPIO HIGH -> ĐÈN BẬT
+    // GPIO LOW  -> ĐÈN TẮT
 
-    ESP_LOGI(TAG, "LIGHT: %s", on ? "ON" : "OFF");
+    gpio_set_level(
+        LIGHT_GPIO,
+        on ? 1 : 0
+    );
+
+    ESP_LOGI(
+        TAG,
+        "LIGHT: %s",
+        on ? "ON" : "OFF"
+    );
 }
 
 /* =========================================================

@@ -19,6 +19,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+class CommandRequest(BaseModel):
+    command: str
+
 
 # =========================================================
 # CORS
@@ -319,3 +322,41 @@ def send_device_command(
             "success": False,
             "message": str(e)
         }
+
+@app.post("/api/devices/{device_id}/command")
+def send_device_command(
+    device_id: str,
+    request: CommandRequest
+):
+    allowed_commands = {
+        "FAN_ON",
+        "FAN_OFF",
+        "PUMP_ON",
+        "PUMP_OFF",
+        "BUZZER_ON",
+        "BUZZER_OFF",
+        "DOOR_OPEN",
+        "DOOR_CLOSE",
+        "LIGHT_ON",
+        "LIGHT_OFF",
+    }
+
+    command = request.command.upper()
+
+    if command not in allowed_commands:
+        return {
+            "success": False,
+            "message": "Lenh khong hop le",
+            "command": command,
+        }
+
+    publish_command(
+        device_id,
+        command
+    )
+
+    return {
+        "success": True,
+        "device_id": device_id,
+        "command": command,
+    }
