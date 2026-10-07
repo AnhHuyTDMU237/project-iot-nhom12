@@ -580,8 +580,13 @@ function App() {
                         </div>
 
 
-                        <div className="sensor-card mq2">
-
+                        <div
+                            className={
+                                sensor?.mq2 != null && sensor.mq2 >= 1800
+                                    ? "sensor-card gas-danger"
+                                    : "sensor-card mq2"
+                            }
+                        >
                             <span className="sensor-icon">
                                 🧪
                             </span>
@@ -589,15 +594,28 @@ function App() {
                             <div>
 
                                 <small>
-                                    MQ-2 GAS
+                                    MQ-2 GAS / SMOKE
                                 </small>
 
                                 <strong>
                                     {sensor?.mq2 ?? "--"}
                                 </strong>
 
-                            </div>
+                                <span
+                                    className={
+                                        sensor?.mq2 != null && sensor.mq2 >= 1800
+                                            ? "gas-status danger"
+                                            : "gas-status normal"
+                                    }
+                                >
+                                    {sensor?.mq2 == null
+                                        ? "WAITING"
+                                        : sensor.mq2 >= 1800
+                                            ? "⚠ GAS ALERT"
+                                            : "✓ NORMAL"}
+                                </span>
 
+                            </div>
                         </div>
 
 

@@ -1547,6 +1547,84 @@ tbody tr:hover {
 
 
 /* =========================================================
+   MQ2 GAS ALERT
+========================================================= */
+
+.sensor-card.mq2 {
+    border-color: rgba(39, 217, 255, 0.15);
+}
+
+.sensor-card.gas-danger {
+    border-color: rgba(255, 77, 103, 0.55);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 77, 103, 0.16),
+            var(--panel)
+        );
+
+    box-shadow:
+        0 0 25px rgba(255, 77, 103, 0.08);
+}
+
+.sensor-card.gas-danger .sensor-icon {
+    animation: gasPulse 1s infinite;
+}
+
+.gas-status {
+    display: block;
+
+    margin-top: 7px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.5px;
+}
+
+.gas-status.normal {
+    color: var(--green);
+}
+
+.gas-status.danger {
+    color: var(--red);
+
+    animation: gasTextPulse 1s infinite;
+}
+
+@keyframes gasPulse {
+
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.12);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes gasTextPulse {
+
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* =========================================================
    RESPONSIVE - 1100px
 ========================================================= */
 
