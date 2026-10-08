@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return 'FIRE ALERT';
     }
 
-    if ((sensor!.mq2 ?? 0) >= 1800) {
+    if ((sensor!.mq2 ?? 0) >= 300) {
       return 'MQ2 ALERT';
     }
 
