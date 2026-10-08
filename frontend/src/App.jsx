@@ -582,7 +582,7 @@ function App() {
 
                         <div
                             className={
-                                sensor?.mq2 != null && sensor.mq2 >= 1800
+                                sensor?.mq2 != null && sensor.mq2 >= 300
                                     ? "sensor-card gas-danger"
                                     : "sensor-card mq2"
                             }
@@ -603,7 +603,7 @@ function App() {
 
                                 <span
                                     className={
-                                        sensor?.mq2 != null && sensor.mq2 >= 1800
+                                        sensor?.mq2 != null && sensor.mq2 >= 300
                                             ? "gas-status danger"
                                             : "gas-status normal"
                                     }
