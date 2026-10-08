@@ -118,7 +118,7 @@
  * rồi điều chỉnh lại cho phù hợp.
  */
 
-#define MQ2_THRESHOLD            1800
+#define MQ2_THRESHOLD            300
 
 
 /* =========================================================

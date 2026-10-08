@@ -610,7 +610,7 @@ function App() {
                                 >
                                     {sensor?.mq2 == null
                                         ? "WAITING"
-                                        : sensor.mq2 >= 1800
+                                        : sensor.mq2 >= 300
                                             ? "⚠ GAS ALERT"
                                             : "✓ NORMAL"}
                                 </span>
